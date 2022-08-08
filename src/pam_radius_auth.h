@@ -179,6 +179,7 @@ typedef struct radius_conf_t {
 	CONST char *client_id;
 	int accounting_bug;
 	int force_prompt;
+	int min_challenge;
 	int max_challenge;
 	int sockfd;
 	int sockfd6;

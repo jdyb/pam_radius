@@ -188,6 +188,9 @@ static int _pam_parse(int argc, CONST char **argv, radius_conf_t *conf)
 		} else if (!strncmp(arg, "max_challenge=", 14)) {
 			conf->max_challenge = strtoul((arg+14), 0, 10);
 
+		} else if (!strncmp(arg, "min_challenge=", 14)) {
+			conf->min_challenge = strtoul((arg+14), 0, 10);
+
 		} else if (!strcmp(arg, "privilege_level")) {
 			conf->privilege_level = TRUE;
 
@@ -202,7 +205,7 @@ static int _pam_parse(int argc, CONST char **argv, radius_conf_t *conf)
 
 		_pam_log(LOG_DEBUG, "DEBUG: conf='%s' use_first_pass=%s try_first_pass=%s skip_passwd=%s retry=%d " \
 							"localifdown=%s client_id='%s' accounting_bug=%s ruser=%s prompt='%s' force_prompt=%s "\
-							"prompt_attribute=%s max_challenge=%d privilege_level=%s",
+							"prompt_attribute=%s min_challenge=%d max_challenge=%d privilege_level=%s",
 				conf->conf_file,
 				print_bool(ctrl & PAM_USE_FIRST_PASS),
 				print_bool(ctrl & PAM_TRY_FIRST_PASS),
@@ -215,6 +218,7 @@ static int _pam_parse(int argc, CONST char **argv, radius_conf_t *conf)
 				conf->prompt,
 				print_bool(conf->force_prompt),
 				print_bool(conf->prompt_attribute),
+				conf->min_challenge,
 				conf->max_challenge,
 				print_bool(conf->privilege_level)
 		);
@@ -1493,6 +1497,21 @@ PAM_EXTERN int pam_sm_authenticate(pam_handle_t *pamh, UNUSED int flags, int arg
 				DPRINT(LOG_DEBUG, "maximum number of challenges (%d) reached, failing", num_challenge);
 				break;
 			}
+		}
+	}
+
+	/*
+	 * min_challenge is a way to require one or more challenges.
+	 * It is useful when it is not possible to configure the server to always challenge during
+	 * authentication this provies a fail-safe way to always require another factor during
+	 * authentication.
+	 */
+	if (config.min_challenge > 0) {
+		if (num_challenge < config.min_challenge) {
+			DPRINT(LOG_DEBUG, "minimum (%d) number of challenges (%d) not reached, failing",
+							config.min_challenge, num_challenge);
+			retval = PAM_PERM_DENIED;
+			goto do_next;
 		}
 	}
 
